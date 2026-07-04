@@ -1,358 +1,972 @@
-import { GoogleGenAI } from "@google/genai";
-import { NextResponse } from "next/server";
-
 type DiscoveryLevel = "Safe" | "Balanced" | "Adventurous";
+
+type DiscoveryTag = "Familiar anchor" | "New to you" | "Stretch pick";
 
 type CatalogueTrack = {
   title: string;
   artist: string;
+  art: string;
   genres: string[];
   moods: string[];
   energy: "low" | "medium" | "high";
-  familiarity: "known" | "new" | "stretch";
+  distance: 1 | 2 | 3 | 4;
 };
 
-const catalogue: CatalogueTrack[] = [
+type DiscoverRequestBody = {
+  prompt?: unknown;
+  level?: unknown;
+  excludedTracks?: unknown;
+};
+
+type GroqTrackSelection = {
+  trackKey: string;
+  reason: string;
+};
+
+type GroqDiscoveryResponse = {
+  tracks: GroqTrackSelection[];
+  summary: string;
+};
+
+type GroqChatCompletionResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+    };
+  }>;
+};
+
+const CATALOGUE: CatalogueTrack[] = [
   {
-    title: "The Silence",
-    artist: "Manchester Orchestra",
-    genres: ["alternative rock", "indie rock"],
-    moods: ["emotional", "intense", "reflective"],
-    energy: "medium",
-    familiarity: "new",
-  },
-  {
-    title: "Sweet Disposition",
-    artist: "The Temper Trap",
-    genres: ["alternative rock", "indie rock"],
-    moods: ["nostalgic", "uplifting", "emotional"],
-    energy: "medium",
-    familiarity: "new",
-  },
-  {
-    title: "Fix You",
+    title: "Sparks",
     artist: "Coldplay",
-    genres: ["alternative rock", "pop rock"],
-    moods: ["emotional", "hopeful", "reflective"],
-    energy: "medium",
-    familiarity: "known",
-  },
-  {
-    title: "First Day of My Life",
-    artist: "Bright Eyes",
-    genres: ["indie folk", "indie rock"],
-    moods: ["intimate", "warm", "reflective"],
+    art: "✨",
+    genres: ["alternative rock", "soft rock"],
+    moods: ["intimate", "melancholic", "warm"],
     energy: "low",
-    familiarity: "stretch",
-  },
-  {
-    title: "Open Your Eyes",
-    artist: "Snow Patrol",
-    genres: ["alternative rock", "pop rock"],
-    moods: ["emotional", "dramatic", "nostalgic"],
-    energy: "medium",
-    familiarity: "new",
-  },
-  {
-    title: "Run",
-    artist: "Snow Patrol",
-    genres: ["alternative rock"],
-    moods: ["emotional", "melancholic", "dramatic"],
-    energy: "medium",
-    familiarity: "new",
-  },
-  {
-    title: "Work Song",
-    artist: "Hozier",
-    genres: ["alternative", "indie soul"],
-    moods: ["dark", "romantic", "emotional"],
-    energy: "low",
-    familiarity: "stretch",
-  },
-  {
-    title: "Somewhere Only We Know",
-    artist: "Keane",
-    genres: ["alternative rock", "piano rock"],
-    moods: ["nostalgic", "emotional", "hopeful"],
-    energy: "medium",
-    familiarity: "new",
+    distance: 1,
   },
   {
     title: "Chasing Cars",
     artist: "Snow Patrol",
-    genres: ["alternative rock"],
-    moods: ["romantic", "emotional", "calm"],
-    energy: "low",
-    familiarity: "new",
+    art: "🌨️",
+    genres: ["alternative rock", "soft rock"],
+    moods: ["emotional", "nostalgic", "slow build"],
+    energy: "medium",
+    distance: 1,
+  },
+  {
+    title: "Somewhere Only We Know",
+    artist: "Keane",
+    art: "🌿",
+    genres: ["piano rock", "alternative rock"],
+    moods: ["nostalgic", "uplifting", "melodic"],
+    energy: "medium",
+    distance: 1,
+  },
+  {
+    title: "Sing",
+    artist: "Travis",
+    art: "☁️",
+    genres: ["britpop", "alternative rock"],
+    moods: ["gentle", "melodic", "hopeful"],
+    energy: "medium",
+    distance: 1,
   },
   {
     title: "How to Save a Life",
     artist: "The Fray",
-    genres: ["alternative rock", "piano rock"],
-    moods: ["emotional", "reflective", "melancholic"],
+    art: "🕯️",
+    genres: ["piano rock", "pop rock"],
+    moods: ["emotional", "dramatic", "reflective"],
     energy: "medium",
-    familiarity: "new",
+    distance: 1,
   },
   {
-    title: "Yellow",
-    artist: "Coldplay",
-    genres: ["alternative rock", "pop rock"],
-    moods: ["warm", "romantic", "nostalgic"],
+    title: "Stop and Stare",
+    artist: "OneRepublic",
+    art: "🛣️",
+    genres: ["pop rock", "alternative rock"],
+    moods: ["anthemic", "reflective", "melodic"],
     energy: "medium",
-    familiarity: "known",
+    distance: 1,
   },
   {
     title: "Read My Mind",
     artist: "The Killers",
-    genres: ["alternative rock", "indie rock"],
-    moods: ["nostalgic", "uplifting", "reflective"],
+    art: "🌃",
+    genres: ["indie rock", "alternative rock"],
+    moods: ["nostalgic", "anthemic", "romantic"],
+    energy: "high",
+    distance: 1,
+  },
+  {
+    title: "Drive",
+    artist: "Incubus",
+    art: "🚘",
+    genres: ["alternative rock", "post-grunge"],
+    moods: ["reflective", "calm", "hopeful"],
     energy: "medium",
-    familiarity: "known",
-  },
-];
-
-const fallbackTracks = [
-  {
-    title: "The Silence",
-    artist: "Manchester Orchestra",
-    tag: "New to you",
-    reason:
-      "Matches the emotional build of your current playlist while introducing a less familiar artist.",
-    art: "🌌",
+    distance: 1,
   },
   {
-    title: "Sweet Disposition",
-    artist: "The Temper Trap",
-    tag: "New to you",
-    reason:
-      "Keeps the nostalgic alternative-rock feeling without repeating your usual artists.",
-    art: "🌅",
+    title: "Like a Stone",
+    artist: "Audioslave",
+    art: "🪨",
+    genres: ["alternative rock", "hard rock"],
+    moods: ["brooding", "powerful", "melancholic"],
+    energy: "high",
+    distance: 1,
   },
   {
-    title: "Fix You",
-    artist: "Coldplay",
-    tag: "Familiar anchor",
-    reason:
-      "Provides one familiar track so the discovery queue still feels connected to your taste.",
-    art: "🟦",
+    title: "Stop Crying Your Heart Out",
+    artist: "Oasis",
+    art: "🌧️",
+    genres: ["britpop", "rock"],
+    moods: ["emotional", "anthemic", "comforting"],
+    energy: "medium",
+    distance: 1,
   },
   {
-    title: "First Day of My Life",
-    artist: "Bright Eyes",
-    tag: "Stretch pick",
-    reason:
-      "Introduces a softer indie direction while preserving the reflective mood.",
+    title: "High and Dry",
+    artist: "Radiohead",
+    art: "🏜️",
+    genres: ["alternative rock", "britpop"],
+    moods: ["melancholic", "wistful", "guitar-led"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Madness",
+    artist: "Muse",
+    art: "🔮",
+    genres: ["alternative rock", "electronic rock"],
+    moods: ["dramatic", "romantic", "slow build"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Evil",
+    artist: "Interpol",
+    art: "🟥",
+    genres: ["post-punk revival", "indie rock"],
+    moods: ["dark", "driving", "cool"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "I Need My Girl",
+    artist: "The National",
     art: "🌙",
+    genres: ["indie rock", "alternative rock"],
+    moods: ["intimate", "melancholic", "romantic"],
+    energy: "low",
+    distance: 2,
   },
   {
-    title: "Open Your Eyes",
-    artist: "Snow Patrol",
-    tag: "New to you",
-    reason:
-      "Fits the melodic emotional-rock direction and broadens the artist mix.",
+    title: "Munich",
+    artist: "Editors",
+    art: "🏙️",
+    genres: ["post-punk revival", "indie rock"],
+    moods: ["urgent", "dark", "driving"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Youth",
+    artist: "Daughter",
+    art: "🌫️",
+    genres: ["indie folk", "dream pop"],
+    moods: ["fragile", "melancholic", "atmospheric"],
+    energy: "low",
+    distance: 2,
+  },
+  {
+    title: "Spanish Sahara",
+    artist: "Foals",
+    art: "🏝️",
+    genres: ["indie rock", "art rock"],
+    moods: ["slow build", "atmospheric", "cathartic"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Sorry",
+    artist: "Nothing But Thieves",
+    art: "⚡",
+    genres: ["alternative rock", "indie rock"],
+    moods: ["dramatic", "emotional", "powerful"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Cornerstone",
+    artist: "Arctic Monkeys",
+    art: "🧱",
+    genres: ["indie rock", "alternative rock"],
+    moods: ["witty", "romantic", "nostalgic"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Eventually",
+    artist: "Tame Impala",
+    art: "🌀",
+    genres: ["psychedelic pop", "indie"],
+    moods: ["dreamy", "bittersweet", "expansive"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Cigarette Daydreams",
+    artist: "Cage The Elephant",
+    art: "🚬",
+    genres: ["indie rock", "alternative rock"],
+    moods: ["nostalgic", "gentle", "bittersweet"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "1901",
+    artist: "Phoenix",
+    art: "🔥",
+    genres: ["indie pop", "indie rock"],
+    moods: ["bright", "energetic", "stylish"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Red Eyes",
+    artist: "The War on Drugs",
+    art: "🔴",
+    genres: ["indie rock", "heartland rock"],
+    moods: ["driving", "expansive", "hopeful"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Someday",
+    artist: "The Strokes",
+    art: "📼",
+    genres: ["indie rock", "garage rock"],
+    moods: ["nostalgic", "casual", "upbeat"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Sonnet",
+    artist: "The Verve",
+    art: "📜",
+    genres: ["britpop", "alternative rock"],
+    moods: ["romantic", "wistful", "melodic"],
+    energy: "medium",
+    distance: 2,
+  },
+  {
+    title: "Black",
+    artist: "Pearl Jam",
+    art: "⚫",
+    genres: ["grunge", "alternative rock"],
+    moods: ["heartbroken", "powerful", "slow build"],
+    energy: "high",
+    distance: 2,
+  },
+  {
+    title: "Nightswimming",
+    artist: "R.E.M.",
+    art: "🌌",
+    genres: ["alternative rock", "soft rock"],
+    moods: ["nostalgic", "quiet", "reflective"],
+    energy: "low",
+    distance: 2,
+  },
+  {
+    title: "Holocene",
+    artist: "Bon Iver",
+    art: "🏔️",
+    genres: ["indie folk", "alternative"],
+    moods: ["reflective", "expansive", "gentle"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Anchor",
+    artist: "Novo Amor",
+    art: "⚓",
+    genres: ["indie folk", "ambient"],
+    moods: ["fragile", "calm", "melancholic"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Oats in the Water",
+    artist: "Ben Howard",
+    art: "🌊",
+    genres: ["indie folk", "alternative"],
+    moods: ["dark", "brooding", "slow build"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Berlin",
+    artist: "RY X",
+    art: "🕊️",
+    genres: ["ambient pop", "indie"],
+    moods: ["intimate", "minimal", "haunting"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Strong",
+    artist: "London Grammar",
+    art: "💠",
+    genres: ["dream pop", "indie pop"],
+    moods: ["dramatic", "atmospheric", "emotional"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Space Song",
+    artist: "Beach House",
+    art: "🪐",
+    genres: ["dream pop", "indie"],
+    moods: ["dreamy", "nostalgic", "floating"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Apocalypse",
+    artist: "Cigarettes After Sex",
+    art: "🌑",
+    genres: ["dream pop", "ambient pop"],
+    moods: ["intimate", "romantic", "moody"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Bloom",
+    artist: "The Paper Kites",
+    art: "🌸",
+    genres: ["indie folk", "acoustic"],
+    moods: ["warm", "romantic", "gentle"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Angels",
+    artist: "The xx",
+    art: "❎",
+    genres: ["indie pop", "minimal"],
+    moods: ["intimate", "quiet", "romantic"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Wait",
+    artist: "M83",
+    art: "🌠",
+    genres: ["dream pop", "electronic"],
+    moods: ["cinematic", "expansive", "slow build"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Cosmic Love",
+    artist: "Florence + The Machine",
+    art: "🌟",
+    genres: ["indie rock", "baroque pop"],
+    moods: ["dramatic", "romantic", "soaring"],
+    energy: "high",
+    distance: 3,
+  },
+  {
+    title: "Don't Delete the Kisses",
+    artist: "Wolf Alice",
+    art: "💋",
+    genres: ["indie rock", "dream pop"],
+    moods: ["romantic", "dreamy", "building"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Dizzy on the Comedown",
+    artist: "Turnover",
+    art: "🫧",
+    genres: ["dream pop", "emo"],
+    moods: ["hazy", "melancholic", "gentle"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "The Love You Want",
+    artist: "Sleep Token",
+    art: "🖤",
+    genres: ["alternative metal", "progressive rock"],
+    moods: ["dramatic", "dark", "cathartic"],
+    energy: "high",
+    distance: 4,
+  },
+  {
+    title: "Unknown / Nth",
+    artist: "Hozier",
+    art: "🕯️",
+    genres: ["indie soul", "alternative"],
+    moods: ["lyrical", "heartbroken", "intense"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Lover, You Should've Come Over",
+    artist: "Jeff Buckley",
+    art: "🌹",
+    genres: ["alternative rock", "singer-songwriter"],
+    moods: ["heartbroken", "dramatic", "soulful"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Habibi",
+    artist: "Tamino",
+    art: "🪬",
+    genres: ["art pop", "alternative"],
+    moods: ["haunting", "dramatic", "mysterious"],
+    energy: "medium",
+    distance: 4,
+  },
+  {
+    title: "Dreams Tonite",
+    artist: "Alvvays",
+    art: "💭",
+    genres: ["indie pop", "dream pop"],
+    moods: ["nostalgic", "bright", "bittersweet"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Aaoge Tum Kabhi",
+    artist: "The Local Train",
+    art: "🚆",
+    genres: ["indian indie", "alternative rock"],
+    moods: ["emotional", "yearning", "slow build"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "Khoj",
+    artist: "When Chai Met Toast",
+    art: "☕",
+    genres: ["indian indie", "folk pop"],
+    moods: ["hopeful", "warm", "uplifting"],
+    energy: "medium",
+    distance: 3,
+  },
+  {
+    title: "cold/mess",
+    artist: "Prateek Kuhad",
     art: "❄️",
+    genres: ["indian indie", "singer-songwriter"],
+    moods: ["intimate", "romantic", "melancholic"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "Alag Aasmaan",
+    artist: "Anuv Jain",
+    art: "☁️",
+    genres: ["indian indie", "acoustic"],
+    moods: ["gentle", "romantic", "wistful"],
+    energy: "low",
+    distance: 3,
+  },
+  {
+    title: "I Love You Baby, I Love You Doll",
+    artist: "Parekh & Singh",
+    art: "🎠",
+    genres: ["indian indie", "dream pop"],
+    moods: ["playful", "dreamy", "romantic"],
+    energy: "medium",
+    distance: 4,
+  },
+  {
+    title: "Jaago",
+    artist: "Lifafa",
+    art: "🪩",
+    genres: ["indian electronic", "indie"],
+    moods: ["hypnotic", "groovy", "unexpected"],
+    energy: "high",
+    distance: 4,
+  },
+  {
+    title: "Sextape",
+    artist: "Deftones",
+    art: "🌊",
+    genres: ["alternative metal", "dream metal"],
+    moods: ["atmospheric", "romantic", "heavy"],
+    energy: "high",
+    distance: 4,
+  },
+  {
+    title: "Song to Say Goodbye",
+    artist: "Placebo",
+    art: "🩶",
+    genres: ["alternative rock", "post-punk"],
+    moods: ["dark", "emotional", "driving"],
+    energy: "high",
+    distance: 3,
   },
 ];
 
-function getArtwork(tag: string) {
-  if (tag === "Familiar anchor") return "🟦";
-  if (tag === "Stretch pick") return "🌙";
-  return "✨";
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "but",
+  "for",
+  "from",
+  "help",
+  "i",
+  "in",
+  "is",
+  "it",
+  "keep",
+  "me",
+  "more",
+  "my",
+  "of",
+  "on",
+  "or",
+  "same",
+  "something",
+  "that",
+  "the",
+  "this",
+  "to",
+  "want",
+  "with",
+]);
+
+function normalise(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function trackKey(track: Pick<CatalogueTrack, "title" | "artist">) {
+  return `${track.title} - ${track.artist}`;
+}
+
+function isDiscoveryLevel(value: unknown): value is DiscoveryLevel {
+  return value === "Safe" || value === "Balanced" || value === "Adventurous";
+}
+
+function getPromptTerms(prompt: string) {
+  return normalise(prompt)
+    .replace(/[^a-z0-9/\s-]/g, " ")
+    .split(/\s+/)
+    .filter((term) => term.length > 2 && !STOP_WORDS.has(term));
+}
+
+function getTargetDistance(level: DiscoveryLevel) {
+  if (level === "Safe") {
+    return 1.5;
+  }
+
+  if (level === "Adventurous") {
+    return 3.7;
+  }
+
+  return 2.6;
+}
+
+function createCandidatePool(
+  prompt: string,
+  level: DiscoveryLevel,
+  excludedTracks: string[]
+) {
+  const excluded = new Set(excludedTracks.map(normalise));
+  const nonExcluded = CATALOGUE.filter(
+    (track) => !excluded.has(normalise(trackKey(track)))
+  );
+
+  const source = nonExcluded.length >= 10 ? nonExcluded : CATALOGUE;
+  const promptTerms = getPromptTerms(prompt);
+  const promptText = normalise(prompt);
+  const targetDistance = getTargetDistance(level);
+
+  const noveltyRequested = [
+    "new",
+    "never heard",
+    "unfamiliar",
+    "surprise",
+    "different",
+    "branch out",
+    "new artists",
+  ].some((phrase) => promptText.includes(phrase));
+
+  const lowerEnergyRequested = [
+    "calm",
+    "soft",
+    "slow",
+    "gentle",
+    "quiet",
+    "low energy",
+  ].some((phrase) => promptText.includes(phrase));
+
+  const higherEnergyRequested = [
+    "energy",
+    "energetic",
+    "upbeat",
+    "loud",
+    "powerful",
+    "high energy",
+  ].some((phrase) => promptText.includes(phrase));
+
+  return source
+    .map((track) => {
+      const searchable = normalise(
+        [
+          track.title,
+          track.artist,
+          ...track.genres,
+          ...track.moods,
+          track.energy,
+        ].join(" ")
+      );
+
+      const termScore = promptTerms.reduce(
+        (score, term) => score + (searchable.includes(term) ? 3 : 0),
+        0
+      );
+
+      const distanceScore =
+        5 - Math.min(5, Math.abs(track.distance - targetDistance) * 1.6);
+
+      const noveltyScore = noveltyRequested ? track.distance * 0.8 : 0;
+
+      const energyScore =
+        (lowerEnergyRequested && track.energy === "low") ||
+        (higherEnergyRequested && track.energy === "high")
+          ? 3
+          : 0;
+
+      const randomVariety = Math.random() * 3;
+
+      return {
+        track,
+        score:
+          termScore +
+          distanceScore +
+          noveltyScore +
+          energyScore +
+          randomVariety,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 24)
+    .map(({ track }) => track);
+}
+
+function getTagPattern(level: DiscoveryLevel): DiscoveryTag[] {
+  if (level === "Safe") {
+    return [
+      "Familiar anchor",
+      "Familiar anchor",
+      "New to you",
+      "New to you",
+      "New to you",
+    ];
+  }
+
+  if (level === "Adventurous") {
+    return [
+      "New to you",
+      "New to you",
+      "New to you",
+      "Stretch pick",
+      "Stretch pick",
+    ];
+  }
+
+  return [
+    "Familiar anchor",
+    "New to you",
+    "New to you",
+    "New to you",
+    "Stretch pick",
+  ];
+}
+
+function createFallbackReason(
+  track: CatalogueTrack,
+  prompt: string,
+  tag: DiscoveryTag
+) {
+  const mood = track.moods.slice(0, 2).join(" and ");
+  const genre = track.genres[0];
+
+  if (tag === "Familiar anchor") {
+    return `A recognisable ${genre} anchor with ${mood} qualities that keeps the queue connected to your request.`;
+  }
+
+  if (tag === "Stretch pick") {
+    return `A wider step into ${genre}, chosen to add a more unexpected ${mood} edge without breaking the flow.`;
+  }
+
+  return `A discovery-led ${genre} pick with ${mood} qualities that responds to “${prompt.slice(
+    0,
+    70
+  )}”.`;
+}
+
+function createFallbackResponse(
+  candidates: CatalogueTrack[],
+  prompt: string,
+  level: DiscoveryLevel
+) {
+  const selected = candidates.slice(0, 5);
+  const tags = getTagPattern(level);
+
+  return {
+    tracks: selected.map((track, index) => ({
+      title: track.title,
+      artist: track.artist,
+      art: track.art,
+      tag: tags[index],
+      reason: createFallbackReason(track, prompt, tags[index]),
+    })),
+    summary: `Built around your request with a ${level.toLowerCase()} mix of emotional continuity, unfamiliar artists and controlled musical distance.`,
+    usedFallback: true,
+    provider: "Curated fallback",
+  };
 }
 
 export async function POST(request: Request) {
+  let body: DiscoverRequestBody;
+
   try {
-    const body = await request.json();
-
-    const prompt =
-      typeof body.prompt === "string" ? body.prompt.trim() : "";
-
-    const level = body.level as DiscoveryLevel;
-
-    if (!prompt) {
-      return NextResponse.json(
-        { error: "A discovery prompt is required." },
-        { status: 400 }
-      );
-    }
-
-    if (!["Safe", "Balanced", "Adventurous"].includes(level)) {
-      return NextResponse.json(
-        { error: "Invalid discovery level." },
-        { status: 400 }
-      );
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({
-        tracks: fallbackTracks,
-        summary:
-          "Fallback recommendations were used because the AI key is not configured.",
-        usedFallback: true,
-      });
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
-
-    const modelPrompt = `
-You are an AI music discovery engine.
-
-Your job is not merely to recommend relevant songs. Your primary goal is to help a listener discover unfamiliar music while keeping the queue coherent.
-
-USER REQUEST:
-${prompt}
-
-DISCOVERY LEVEL:
-${level}
-
-CURRENT LISTENING CONTEXT:
-- Coldplay
-- Linkin Park
-- Red Hot Chili Peppers
-- The Beatles
-- The Killers
-- Emotional rock
-- Nostalgic melodies
-- Medium energy
-
-AVAILABLE CATALOGUE:
-${JSON.stringify(catalogue, null, 2)}
-
-DISCOVERY RULES:
-
-Safe:
-- 2 familiar anchors
-- 3 adjacent discoveries
-- No major genre jump
-
-Balanced:
-- 1 familiar anchor
-- 3 adjacent discoveries
-- 1 stretch discovery
-
-Adventurous:
-- 0 or 1 familiar anchor
-- At least 2 stretch discoveries
-- Wider musical distance is allowed
-
-Additional rules:
-- Return exactly 5 tracks.
-- Only choose tracks from the supplied catalogue.
-- Do not invent songs or artists.
-- Do not repeat a song.
-- Make the recommendations clearly support discovery.
-- Reasons must be concise and personalised.
-- Tag each track as exactly one of:
-  "Familiar anchor"
-  "New to you"
-  "Stretch pick"
-
-Return JSON only in this format:
-
-{
-  "summary": "One sentence describing what the AI understood.",
-  "tracks": [
-    {
-      "title": "Song title",
-      "artist": "Artist",
-      "tag": "New to you",
-      "reason": "Short personalised reason"
-    }
-  ]
-}
-`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: modelPrompt,
-      config: {
-  responseMimeType: "application/json",
-  responseJsonSchema: {
-    type: "object",
-    properties: {
-      summary: {
-        type: "string",
+    body = (await request.json()) as DiscoverRequestBody;
+  } catch {
+    return Response.json(
+      {
+        error: "The request body must be valid JSON.",
       },
-      tracks: {
-        type: "array",
-        minItems: 5,
-        maxItems: 5,
-        items: {
-          type: "object",
-          properties: {
-            title: {
-              type: "string",
+      {
+        status: 400,
+      }
+    );
+  }
+
+  const prompt =
+    typeof body.prompt === "string" ? body.prompt.trim().slice(0, 600) : "";
+
+  const level: DiscoveryLevel = isDiscoveryLevel(body.level)
+    ? body.level
+    : "Balanced";
+
+  const excludedTracks = Array.isArray(body.excludedTracks)
+    ? body.excludedTracks
+        .filter((item): item is string => typeof item === "string")
+        .slice(-30)
+    : [];
+
+  if (!prompt) {
+    return Response.json(
+      {
+        error: "Please enter a discovery prompt.",
+      },
+      {
+        status: 400,
+      }
+    );
+  }
+
+  const candidates = createCandidatePool(prompt, level, excludedTracks);
+  const fallbackResponse = createFallbackResponse(candidates, prompt, level);
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    return Response.json(fallbackResponse, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const candidateKeys = candidates.map(trackKey);
+  const candidateByKey = new Map(
+    candidates.map((track) => [normalise(trackKey(track)), track])
+  );
+
+  const levelInstruction =
+    level === "Safe"
+      ? "Stay close to the current emotional alternative-rock taste. Use two accessible anchors and three gentle discoveries."
+      : level === "Adventurous"
+      ? "Prioritise unfamiliar artists, wider genre movement and two genuine stretch picks while keeping a coherent emotional thread."
+      : "Use one familiar anchor, three new-to-you discoveries and one stretch pick. Keep the queue coherent rather than random.";
+
+  try {
+    const groqResponse = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are the recommendation intelligence inside Spotify's Discover Next feature. Select exactly five unique songs only from the supplied candidate list. Interpret the listener's natural-language intent, preserve a coherent queue flow, and avoid generic repetition. Never invent a song or artist. Return concise reasons that explain why each selection fits.",
             },
-            artist: {
-              type: "string",
+            {
+              role: "user",
+              content: JSON.stringify({
+                listenerPrompt: prompt,
+                discoveryLevel: level,
+                levelInstruction,
+                outputInstruction:
+                  "Return exactly five unique trackKey values from candidates. Order them as a playable queue with a coherent emotional or energy progression.",
+                candidates: candidates.map((track) => ({
+                  trackKey: trackKey(track),
+                  genres: track.genres,
+                  moods: track.moods,
+                  energy: track.energy,
+                  musicalDistance: track.distance,
+                })),
+              }),
             },
-            tag: {
-              type: "string",
-              enum: [
-                "Familiar anchor",
-                "New to you",
-                "Stretch pick",
-              ],
-            },
-            reason: {
-              type: "string",
+          ],
+          temperature: 0.9,
+          reasoning_effort: "low",
+          max_completion_tokens: 1000,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "spotify_discovery_queue",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  tracks: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        trackKey: {
+                          type: "string",
+                          enum: candidateKeys,
+                        },
+                        reason: {
+                          type: "string",
+                        },
+                      },
+                      required: ["trackKey", "reason"],
+                      additionalProperties: false,
+                    },
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                },
+                required: ["tracks", "summary"],
+                additionalProperties: false,
+              },
             },
           },
-          required: ["title", "artist", "tag", "reason"],
-        },
-      },
-    },
-    required: ["summary", "tracks"],
-  },
-},
-    });
-
-    const responseText = response.text;
-
-    if (!responseText) {
-      throw new Error("Gemini returned an empty response.");
-    }
-
-    const parsed = JSON.parse(responseText);
-
-    if (!Array.isArray(parsed.tracks) || parsed.tracks.length === 0) {
-      throw new Error("Gemini returned an invalid track list.");
-    }
-
-    const tracks = parsed.tracks.slice(0, 5).map(
-      (track: {
-        title?: string;
-        artist?: string;
-        tag?: string;
-        reason?: string;
-      }) => ({
-        title: track.title ?? "Unknown track",
-        artist: track.artist ?? "Unknown artist",
-        tag: track.tag ?? "New to you",
-        reason:
-          track.reason ??
-          "Selected because it matches the direction of your request.",
-        art: getArtwork(track.tag ?? "New to you"),
-      })
+        }),
+        cache: "no-store",
+      }
     );
 
-    return NextResponse.json({
-      tracks,
-      summary:
-        parsed.summary ??
-        "A discovery queue based on your current playlist and prompt.",
-      usedFallback: false,
-    });
-  } catch (error) {
-    console.error("Discovery API error:", error);
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
+      throw new Error(
+        `Groq request failed with ${groqResponse.status}: ${errorText}`
+      );
+    }
 
-    return NextResponse.json({
-      tracks: fallbackTracks,
-      summary:
-        "A reliable fallback queue was generated because the AI request could not be completed.",
-      usedFallback: true,
+    const groqData =
+      (await groqResponse.json()) as GroqChatCompletionResponse;
+
+    const content = groqData.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("Groq returned an empty response.");
+    }
+
+    const parsed = JSON.parse(content) as GroqDiscoveryResponse;
+    const seen = new Set<string>();
+
+    const selected = Array.isArray(parsed.tracks)
+      ? parsed.tracks
+          .filter((item) => {
+            if (
+              !item ||
+              typeof item.trackKey !== "string" ||
+              typeof item.reason !== "string"
+            ) {
+              return false;
+            }
+
+            const key = normalise(item.trackKey);
+
+            if (seen.has(key) || !candidateByKey.has(key)) {
+              return false;
+            }
+
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 5)
+      : [];
+
+    if (selected.length !== 5) {
+      throw new Error("Groq did not return five valid unique tracks.");
+    }
+
+    const tags = getTagPattern(level);
+
+    const tracks = selected.map((selection, index) => {
+      const track = candidateByKey.get(normalise(selection.trackKey));
+
+      if (!track) {
+        throw new Error("A selected track was not found in the catalogue.");
+      }
+
+      return {
+        title: track.title,
+        artist: track.artist,
+        art: track.art,
+        tag: tags[index],
+        reason: selection.reason.trim().slice(0, 260),
+      };
+    });
+
+    return Response.json(
+      {
+        tracks,
+        summary:
+          typeof parsed.summary === "string" && parsed.summary.trim()
+            ? parsed.summary.trim().slice(0, 320)
+            : `A ${level.toLowerCase()} discovery queue shaped around your prompt.`,
+        usedFallback: false,
+        provider: "Groq · GPT-OSS 20B",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Discover Next Groq error:", error);
+
+    return Response.json(fallbackResponse, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   }
 }
