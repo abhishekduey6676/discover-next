@@ -1,10 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { loginWithSpotify } from "@/lib/spotifyAuth";
+import {
+  loginWithSpotify,
+  spotifyFetch,
+} from "@/lib/spotifyAuth";
 import SpotifyPlayer from "@/components/SpotifyPlayer";
 
 type DiscoveryLevel = "Safe" | "Balanced" | "Adventurous";
+
+type NowPlayingContext = {
+  title: string;
+  artist: string;
+};
 
 type DiscoveryTrack = {
   title: string;
@@ -77,6 +85,8 @@ export default function Home() {
   const [isStartingDiscoveryQueue, setIsStartingDiscoveryQueue] =
     useState(false);
   const [spotifyQueueError, setSpotifyQueueError] = useState("");
+  const [nowPlaying, setNowPlaying] =
+    useState<NowPlayingContext | null>(null);
 
   const [isDiscoverySheetOpen, setIsDiscoverySheetOpen] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -148,6 +158,7 @@ export default function Home() {
           prompt: prompt.trim(),
           level,
           excludedTracks: excludedTrackKeys,
+          nowPlaying,
         }),
       });
 
@@ -197,10 +208,9 @@ export default function Home() {
   }
 
   async function playDiscoveryQueue() {
-    const token = localStorage.getItem("spotify_access_token");
     const deviceId = localStorage.getItem("spotify_device_id");
 
-    if (!token || !deviceId) {
+    if (!deviceId) {
       setSpotifyQueueError(
         "Connect Spotify and activate browser playback first."
       );
@@ -224,13 +234,8 @@ export default function Home() {
             market: "from_token",
           });
 
-          const response = await fetch(
-            `https://api.spotify.com/v1/search?${searchParams.toString()}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
+          const response = await spotifyFetch(
+            `https://api.spotify.com/v1/search?${searchParams.toString()}`
           );
 
           if (!response.ok) {
@@ -257,14 +262,13 @@ export default function Home() {
         })
       );
 
-      const playResponse = await fetch(
+      const playResponse = await spotifyFetch(
         `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(
           deviceId
         )}`,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -347,7 +351,10 @@ export default function Home() {
             Connect Spotify Premium
           </button>
 
-          <SpotifyPlayer onOpenDiscovery={() => openDiscoveryBuilder()} />
+          <SpotifyPlayer
+            onOpenDiscovery={() => openDiscoveryBuilder()}
+            onTrackChange={setNowPlaying}
+          />
 
           <section className="mt-7 rounded-3xl border border-green-500/25 bg-gradient-to-br from-green-500/10 via-transparent to-transparent p-5">
             <div className="flex items-start gap-4">
@@ -369,6 +376,24 @@ export default function Home() {
                   will turn it into a playable Spotify queue.
                 </p>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-black/25 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                Musical anchor
+              </p>
+
+              {nowPlaying ? (
+                <p className="mt-2 text-sm leading-6 text-zinc-200">
+                  <span className="font-semibold">{nowPlaying.title}</span>
+                  {" by "}
+                  {nowPlaying.artist}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Start a Spotify song first so the AI can use it as context.
+                </p>
+              )}
             </div>
 
             <button
@@ -442,6 +467,12 @@ export default function Home() {
                   <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">
                     {aiProvider || "AI recommendation engine"}
                   </span>
+
+                  {nowPlaying && (
+                    <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">
+                      Anchored from {nowPlaying.title}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -574,6 +605,22 @@ export default function Home() {
                   ×
                 </button>
               </div>
+
+              {nowPlaying && (
+                <div className="mt-5 rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-400">
+                    Starting from
+                  </p>
+
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {nowPlaying.title}
+                  </p>
+
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {nowPlaying.artist}
+                  </p>
+                </div>
+              )}
 
               <label
                 htmlFor="discovery-prompt"

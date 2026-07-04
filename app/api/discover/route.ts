@@ -2,6 +2,8 @@ type DiscoveryLevel = "Safe" | "Balanced" | "Adventurous";
 
 type DiscoveryTag = "Familiar anchor" | "New to you" | "Stretch pick";
 
+type PromptIntent = "party" | "general";
+
 type CatalogueTrack = {
   title: string;
   artist: string;
@@ -10,12 +12,19 @@ type CatalogueTrack = {
   moods: string[];
   energy: "low" | "medium" | "high";
   distance: 1 | 2 | 3 | 4;
+  intentTags?: string[];
+};
+
+type NowPlayingContext = {
+  title: string;
+  artist: string;
 };
 
 type DiscoverRequestBody = {
   prompt?: unknown;
   level?: unknown;
   excludedTracks?: unknown;
+  nowPlaying?: unknown;
 };
 
 type GroqTrackSelection = {
@@ -514,6 +523,186 @@ const CATALOGUE: CatalogueTrack[] = [
     energy: "high",
     distance: 3,
   },
+  {
+    title: "Levitating",
+    artist: "Dua Lipa",
+    art: "🪩",
+    genres: ["dance pop", "disco pop"],
+    moods: ["party", "upbeat", "confident"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "celebration"],
+  },
+  {
+    title: "Don't Start Now",
+    artist: "Dua Lipa",
+    art: "💃",
+    genres: ["dance pop", "nu-disco"],
+    moods: ["party", "groovy", "confident"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Blinding Lights",
+    artist: "The Weeknd",
+    art: "🌆",
+    genres: ["synth-pop", "dance pop"],
+    moods: ["energetic", "driving", "night-out"],
+    energy: "high",
+    distance: 2,
+    intentTags: ["party", "dance", "night"],
+  },
+  {
+    title: "One More Time",
+    artist: "Daft Punk",
+    art: "🤖",
+    genres: ["house", "electronic", "dance"],
+    moods: ["celebratory", "party", "euphoric"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Wake Me Up",
+    artist: "Avicii",
+    art: "🌅",
+    genres: ["edm", "dance pop"],
+    moods: ["uplifting", "festival", "energetic"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "festival"],
+  },
+  {
+    title: "Rather Be",
+    artist: "Clean Bandit",
+    art: "🎻",
+    genres: ["dance pop", "electronic"],
+    moods: ["bright", "upbeat", "feel-good"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "celebration"],
+  },
+  {
+    title: "This Girl",
+    artist: "Kungs",
+    art: "🎺",
+    genres: ["house", "dance"],
+    moods: ["groovy", "sunny", "party"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Midnight City",
+    artist: "M83",
+    art: "🌃",
+    genres: ["synth-pop", "electronic"],
+    moods: ["night-out", "euphoric", "driving"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "night"],
+  },
+  {
+    title: "Walking on a Dream",
+    artist: "Empire of the Sun",
+    art: "🌈",
+    genres: ["electropop", "synth-pop"],
+    moods: ["bright", "dreamy", "upbeat"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "feel-good"],
+  },
+  {
+    title: "Shut Up and Dance",
+    artist: "WALK THE MOON",
+    art: "🎉",
+    genres: ["dance rock", "pop rock"],
+    moods: ["party", "playful", "energetic"],
+    energy: "high",
+    distance: 2,
+    intentTags: ["party", "dance", "celebration"],
+  },
+  {
+    title: "Udd Gaye",
+    artist: "Ritviz",
+    art: "🚀",
+    genres: ["indian electronic", "dance"],
+    moods: ["party", "playful", "euphoric"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "indian"],
+  },
+  {
+    title: "Liggi",
+    artist: "Ritviz",
+    art: "🌻",
+    genres: ["indian electronic", "dance pop"],
+    moods: ["groovy", "playful", "feel-good"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "indian"],
+  },
+  {
+    title: "D.A.N.C.E.",
+    artist: "Justice",
+    art: "✝️",
+    genres: ["electro house", "dance"],
+    moods: ["playful", "club", "energetic"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Dance Yrself Clean",
+    artist: "LCD Soundsystem",
+    art: "🔊",
+    genres: ["dance-punk", "electronic"],
+    moods: ["slow build", "club", "cathartic"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Heads Will Roll - A-Trak Remix",
+    artist: "Yeah Yeah Yeahs",
+    art: "👑",
+    genres: ["electro house", "dance rock"],
+    moods: ["club", "dramatic", "high-energy"],
+    energy: "high",
+    distance: 4,
+    intentTags: ["party", "dance", "club"],
+  },
+  {
+    title: "Electric Feel",
+    artist: "MGMT",
+    art: "⚡",
+    genres: ["indie electronic", "psychedelic pop"],
+    moods: ["groovy", "playful", "danceable"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "groove"],
+  },
+  {
+    title: "Lisztomania",
+    artist: "Phoenix",
+    art: "🎹",
+    genres: ["indie pop", "dance rock"],
+    moods: ["bright", "stylish", "upbeat"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "feel-good"],
+  },
+  {
+    title: "The Less I Know the Better",
+    artist: "Tame Impala",
+    art: "🌀",
+    genres: ["psychedelic pop", "indie dance"],
+    moods: ["groovy", "danceable", "stylish"],
+    energy: "high",
+    distance: 3,
+    intentTags: ["party", "dance", "groove"],
+  },
 ];
 
 const STOP_WORDS = new Set([
@@ -558,6 +747,36 @@ function isDiscoveryLevel(value: unknown): value is DiscoveryLevel {
   return value === "Safe" || value === "Balanced" || value === "Adventurous";
 }
 
+function parseNowPlaying(value: unknown): NowPlayingContext | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as {
+    title?: unknown;
+    artist?: unknown;
+  };
+
+  if (
+    typeof candidate.title !== "string" ||
+    typeof candidate.artist !== "string"
+  ) {
+    return null;
+  }
+
+  const title = candidate.title.trim().slice(0, 180);
+  const artist = candidate.artist.trim().slice(0, 180);
+
+  if (!title || !artist) {
+    return null;
+  }
+
+  return {
+    title,
+    artist,
+  };
+}
+
 function getPromptTerms(prompt: string) {
   return normalise(prompt)
     .replace(/[^a-z0-9/\s-]/g, " ")
@@ -577,17 +796,105 @@ function getTargetDistance(level: DiscoveryLevel) {
   return 2.6;
 }
 
+function detectPromptIntent(prompt: string): PromptIntent {
+  const promptText = normalise(prompt);
+
+  const partyKeywords = [
+    "party",
+    "party tracks",
+    "dance",
+    "dancing",
+    "club",
+    "club-ready",
+    "celebration",
+    "celebratory",
+    "pregame",
+    "night out",
+    "house party",
+    "edm",
+    "festival",
+    "groovy",
+    "feel good",
+    "feel-good",
+  ];
+
+  return partyKeywords.some((keyword) => promptText.includes(keyword))
+    ? "party"
+    : "general";
+}
+
+function matchesPromptIntent(
+  track: CatalogueTrack,
+  intent: PromptIntent
+) {
+  if (intent === "general") {
+    return true;
+  }
+
+  const searchable = normalise(
+    [
+      ...track.genres,
+      ...track.moods,
+      ...(track.intentTags ?? []),
+    ].join(" ")
+  );
+
+  const partySignals = [
+    "party",
+    "dance",
+    "club",
+    "house",
+    "edm",
+    "festival",
+    "disco",
+    "groovy",
+    "danceable",
+    "celebratory",
+    "night-out",
+    "feel-good",
+    "upbeat",
+  ];
+
+  return (
+    track.energy === "high" &&
+    partySignals.some((signal) => searchable.includes(signal))
+  );
+}
+
+function getIntentInstruction(intent: PromptIntent) {
+  if (intent === "party") {
+    return "The listener explicitly requested party music. Every selected track must be danceable, upbeat, celebratory, club-ready or festival-ready. This requirement is more important than matching the currently playing song. Do not select heavy, brooding, slow, intimate or melancholy tracks merely because they are high-energy.";
+  }
+
+  return "Follow the listener's explicit prompt first, then use the currently playing song as supporting context.";
+}
+
 function createCandidatePool(
   prompt: string,
   level: DiscoveryLevel,
-  excludedTracks: string[]
+  excludedTracks: string[],
+  nowPlaying: NowPlayingContext | null
 ) {
   const excluded = new Set(excludedTracks.map(normalise));
+
+  if (nowPlaying) {
+    excluded.add(
+      normalise(`${nowPlaying.title} - ${nowPlaying.artist}`)
+    );
+  }
   const nonExcluded = CATALOGUE.filter(
     (track) => !excluded.has(normalise(trackKey(track)))
   );
 
-  const source = nonExcluded.length >= 10 ? nonExcluded : CATALOGUE;
+  const baseSource = nonExcluded.length >= 10 ? nonExcluded : CATALOGUE;
+  const promptIntent = detectPromptIntent(prompt);
+  const intentFilteredSource = baseSource.filter((track) =>
+    matchesPromptIntent(track, promptIntent)
+  );
+  const source =
+    promptIntent !== "general" && intentFilteredSource.length >= 8
+      ? intentFilteredSource
+      : baseSource;
   const promptTerms = getPromptTerms(prompt);
   const promptText = normalise(prompt);
   const targetDistance = getTargetDistance(level);
@@ -611,14 +918,16 @@ function createCandidatePool(
     "low energy",
   ].some((phrase) => promptText.includes(phrase));
 
-  const higherEnergyRequested = [
-    "energy",
-    "energetic",
-    "upbeat",
-    "loud",
-    "powerful",
-    "high energy",
-  ].some((phrase) => promptText.includes(phrase));
+  const higherEnergyRequested =
+    promptIntent === "party" ||
+    [
+      "energy",
+      "energetic",
+      "upbeat",
+      "loud",
+      "powerful",
+      "high energy",
+    ].some((phrase) => promptText.includes(phrase));
 
   return source
     .map((track) => {
@@ -648,7 +957,8 @@ function createCandidatePool(
           ? 3
           : 0;
 
-      const randomVariety = Math.random() * 3;
+      const intentScore = matchesPromptIntent(track, promptIntent) ? 12 : 0;
+      const randomVariety = Math.random() * 2;
 
       return {
         track,
@@ -657,6 +967,7 @@ function createCandidatePool(
           distanceScore +
           noveltyScore +
           energyScore +
+          intentScore +
           randomVariety,
       };
     })
@@ -720,10 +1031,12 @@ function createFallbackReason(
 function createFallbackResponse(
   candidates: CatalogueTrack[],
   prompt: string,
-  level: DiscoveryLevel
+  level: DiscoveryLevel,
+  nowPlaying: NowPlayingContext | null
 ) {
   const selected = candidates.slice(0, 5);
   const tags = getTagPattern(level);
+  const promptIntent = detectPromptIntent(prompt);
 
   return {
     tracks: selected.map((track, index) => ({
@@ -733,7 +1046,12 @@ function createFallbackResponse(
       tag: tags[index],
       reason: createFallbackReason(track, prompt, tags[index]),
     })),
-    summary: `Built around your request with a ${level.toLowerCase()} mix of emotional continuity, unfamiliar artists and controlled musical distance.`,
+    summary:
+      promptIntent === "party"
+        ? `A danceable ${level.toLowerCase()} party queue built around unfamiliar artists, upbeat momentum and a coherent energy rise.`
+        : nowPlaying
+        ? `Starting from “${nowPlaying.title}” by ${nowPlaying.artist}, this ${level.toLowerCase()} queue keeps the musical thread while introducing unfamiliar artists and controlled musical distance.`
+        : `Built around your request with a ${level.toLowerCase()} mix of emotional continuity, unfamiliar artists and controlled musical distance.`,
     usedFallback: true,
     provider: "Curated fallback",
   };
@@ -768,6 +1086,9 @@ export async function POST(request: Request) {
         .slice(-30)
     : [];
 
+  const nowPlaying = parseNowPlaying(body.nowPlaying);
+  const promptIntent = detectPromptIntent(prompt);
+
   if (!prompt) {
     return Response.json(
       {
@@ -779,8 +1100,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const candidates = createCandidatePool(prompt, level, excludedTracks);
-  const fallbackResponse = createFallbackResponse(candidates, prompt, level);
+  const candidates = createCandidatePool(
+    prompt,
+    level,
+    excludedTracks,
+    nowPlaying
+  );
+
+  const fallbackResponse = createFallbackResponse(
+    candidates,
+    prompt,
+    level,
+    nowPlaying
+  );
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
@@ -796,12 +1128,14 @@ export async function POST(request: Request) {
     candidates.map((track) => [normalise(trackKey(track)), track])
   );
 
+  const intentInstruction = getIntentInstruction(promptIntent);
+
   const levelInstruction =
     level === "Safe"
-      ? "Stay close to the current emotional alternative-rock taste. Use two accessible anchors and three gentle discoveries."
+      ? "Stay close to the musical character of the current song. Use two accessible anchors and three gentle discoveries."
       : level === "Adventurous"
-      ? "Prioritise unfamiliar artists, wider genre movement and two genuine stretch picks while keeping a coherent emotional thread."
-      : "Use one familiar anchor, three new-to-you discoveries and one stretch pick. Keep the queue coherent rather than random.";
+      ? "Use the current song only as a starting point, then prioritise unfamiliar artists, wider genre movement and two genuine stretch picks."
+      : "Use the current song as a musical anchor, then choose one familiar-feeling track, three new-to-you discoveries and one stretch pick.";
 
   try {
     const groqResponse = await fetch(
@@ -818,16 +1152,19 @@ export async function POST(request: Request) {
             {
               role: "system",
               content:
-                "You are the recommendation intelligence inside Spotify's Discover Next feature. Select exactly five unique songs only from the supplied candidate list. Interpret the listener's natural-language intent, preserve a coherent queue flow, and avoid generic repetition. Never invent a song or artist. Return concise reasons that explain why each selection fits.",
+                "You are the recommendation intelligence inside Spotify's Discover Next feature. The listener's explicit natural-language request is the strongest instruction. Use the real currently playing song only as supporting musical context when it does not conflict with the request. Select exactly five unique songs only from the supplied candidate list. Preserve a coherent queue flow, avoid generic repetition, and never invent a song or artist. Return concise reasons that explain why each track satisfies the listener's request.",
             },
             {
               role: "user",
               content: JSON.stringify({
+                nowPlaying,
                 listenerPrompt: prompt,
+                detectedIntent: promptIntent,
+                intentInstruction,
                 discoveryLevel: level,
                 levelInstruction,
                 outputInstruction:
-                  "Return exactly five unique trackKey values from candidates. Order them as a playable queue with a coherent emotional or energy progression.",
+                  "Return exactly five unique trackKey values from candidates. Obey the detected intent as a hard constraint. Order the tracks as a playable queue with a coherent emotional or energy progression.",
                 candidates: candidates.map((track) => ({
                   trackKey: trackKey(track),
                   genres: track.genres,

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  getValidSpotifyAccessToken,
+  spotifyFetch,
+} from "@/lib/spotifyAuth";
 
 type SpotifyArtist = {
   name: string;
@@ -87,8 +91,14 @@ declare global {
   }
 }
 
+type NowPlayingContext = {
+  title: string;
+  artist: string;
+};
+
 type SpotifyPlayerProps = {
   onOpenDiscovery: () => void;
+  onTrackChange: (track: NowPlayingContext | null) => void;
 };
 
 function formatTime(milliseconds: number) {
@@ -105,8 +115,10 @@ function formatTime(milliseconds: number) {
 
 export default function SpotifyPlayer({
   onOpenDiscovery,
+  onTrackChange,
 }: SpotifyPlayerProps) {
   const playerRef = useRef<SpotifyPlayerInstance | null>(null);
+  const onTrackChangeRef = useRef(onTrackChange);
 
   const [status, setStatus] = useState(
     "Loading Spotify player..."
@@ -130,9 +142,15 @@ export default function SpotifyPlayer({
   const [queueOpen, setQueueOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("spotify_access_token");
+    onTrackChangeRef.current = onTrackChange;
+  }, [onTrackChange]);
 
-    if (!token) {
+  useEffect(() => {
+    const hasSpotifySession =
+      localStorage.getItem("spotify_access_token") ||
+      localStorage.getItem("spotify_refresh_token");
+
+    if (!hasSpotifySession) {
       setStatus("Connect Spotify first.");
       return;
     }
@@ -152,13 +170,24 @@ export default function SpotifyPlayer({
         name: "Discover Next Player",
 
         getOAuthToken: (callback) => {
-          const currentToken = localStorage.getItem(
-            "spotify_access_token"
-          );
+          void getValidSpotifyAccessToken()
+            .then((token) => {
+              if (token) {
+                callback(token);
+                return;
+              }
 
-          if (currentToken) {
-            callback(currentToken);
-          }
+              setStatus("Spotify session expired. Connect again.");
+            })
+            .catch((error) => {
+              console.error(error);
+
+              setStatus(
+                error instanceof Error
+                  ? error.message
+                  : "Spotify authentication failed."
+              );
+            });
         },
 
         volume: 0.5,
@@ -167,14 +196,14 @@ export default function SpotifyPlayer({
       playerRef.current = player;
 
       player.addListener("ready", ({ device_id }) => {
-  if (cancelled) {
-    return;
-  }
+        if (cancelled) {
+          return;
+        }
 
         setDeviceId(device_id);
         localStorage.setItem("spotify_device_id", device_id);
         setStatus("Spotify player connected");
-        });
+      });
 
       player.addListener("not_ready", () => {
         if (cancelled) {
@@ -190,9 +219,19 @@ export default function SpotifyPlayer({
           return;
         }
 
+        const playingTrack = state.track_window.current_track;
+        const playingArtist =
+          playingTrack.artists
+            ?.map((artist) => artist.name)
+            .join(", ") ?? "";
+
         setIsActive(true);
-        setCurrentTrack(state.track_window.current_track);
+        setCurrentTrack(playingTrack);
         setNextTracks(state.track_window.next_tracks ?? []);
+        onTrackChangeRef.current({
+          title: playingTrack.name,
+          artist: playingArtist,
+        });
         setIsPaused(state.paused);
         setPosition(state.position);
         setDuration(state.duration);
@@ -273,15 +312,6 @@ export default function SpotifyPlayer({
   }, [isPaused, isActive, duration]);
 
   async function activateBrowserPlayer() {
-    const token = localStorage.getItem(
-      "spotify_access_token"
-    );
-
-    if (!token) {
-      setStatus("Spotify access token is missing.");
-      return false;
-    }
-
     if (!deviceId) {
       setStatus("Spotify browser device is not ready.");
       return false;
@@ -292,12 +322,11 @@ export default function SpotifyPlayer({
     try {
       await playerRef.current?.activateElement();
 
-      const response = await fetch(
+      const response = await spotifyFetch(
         "https://api.spotify.com/v1/me/player",
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -336,15 +365,6 @@ export default function SpotifyPlayer({
   }
 
   async function startInitialTrack() {
-    const token = localStorage.getItem(
-      "spotify_access_token"
-    );
-
-    if (!token) {
-      setStatus("Spotify access token is missing.");
-      return;
-    }
-
     if (!deviceId) {
       setStatus("Spotify browser device is not ready.");
       return;
@@ -357,12 +377,11 @@ export default function SpotifyPlayer({
 
       setStatus("Activating browser player...");
 
-      const transferResponse = await fetch(
+      const transferResponse = await spotifyFetch(
         "https://api.spotify.com/v1/me/player",
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -394,13 +413,8 @@ export default function SpotifyPlayer({
         market: "from_token",
       });
 
-      const searchResponse = await fetch(
-        `https://api.spotify.com/v1/search?${searchParams.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const searchResponse = await spotifyFetch(
+        `https://api.spotify.com/v1/search?${searchParams.toString()}`
       );
 
       if (!searchResponse.ok) {
@@ -425,14 +439,13 @@ export default function SpotifyPlayer({
 
       setStatus(`Starting ${track.name}...`);
 
-      const playResponse = await fetch(
+      const playResponse = await spotifyFetch(
         `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(
           deviceId
         )}`,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
