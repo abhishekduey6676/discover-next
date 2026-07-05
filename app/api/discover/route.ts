@@ -1,8 +1,8 @@
 type DiscoveryLevel = "Safe" | "Balanced" | "Adventurous";
 
-type DiscoveryTag = "Familiar anchor" | "New to you" | "Stretch pick";
+type DiscoveryTag = "Familiar bridge" | "New to you" | "Stretch pick";
 
-type PromptIntent = "party" | "general";
+type PromptIntent = "party" | "calm" | "general";
 
 type CatalogueTrack = {
   title: string;
@@ -24,6 +24,7 @@ type DiscoverRequestBody = {
   prompt?: unknown;
   level?: unknown;
   excludedTracks?: unknown;
+  previousTracks?: unknown;
   nowPlaying?: unknown;
 };
 
@@ -802,6 +803,9 @@ function detectPromptIntent(prompt: string): PromptIntent {
   const partyKeywords = [
     "party",
     "party tracks",
+    "upbeat",
+    "energetic",
+    "higher energy",
     "dance",
     "dancing",
     "club",
@@ -818,52 +822,94 @@ function detectPromptIntent(prompt: string): PromptIntent {
     "feel-good",
   ];
 
-  return partyKeywords.some((keyword) => promptText.includes(keyword))
-    ? "party"
-    : "general";
+  if (partyKeywords.some((keyword) => promptText.includes(keyword))) {
+    return "party";
+  }
+
+  const calmKeywords = [
+    "calm",
+    "calmer",
+    "acoustic",
+    "reflective",
+    "soft",
+    "softer",
+    "gentle",
+    "quiet",
+    "slow",
+    "low energy",
+    "wind down",
+    "peaceful",
+  ];
+
+  if (calmKeywords.some((keyword) => promptText.includes(keyword))) {
+    return "calm";
+  }
+
+  return "general";
 }
 
-function matchesPromptIntent(
-  track: CatalogueTrack,
-  intent: PromptIntent
-) {
+function matchesPromptIntent(track: CatalogueTrack, intent: PromptIntent) {
   if (intent === "general") {
     return true;
   }
 
   const searchable = normalise(
-    [
-      ...track.genres,
-      ...track.moods,
-      ...(track.intentTags ?? []),
-    ].join(" ")
+    [...track.genres, ...track.moods, ...(track.intentTags ?? [])].join(" "),
   );
 
-  const partySignals = [
-    "party",
-    "dance",
-    "club",
-    "house",
-    "edm",
-    "festival",
-    "disco",
-    "groovy",
-    "danceable",
-    "celebratory",
-    "night-out",
-    "feel-good",
-    "upbeat",
+  if (intent === "party") {
+    const partySignals = [
+      "party",
+      "dance",
+      "club",
+      "house",
+      "edm",
+      "festival",
+      "disco",
+      "groovy",
+      "danceable",
+      "celebratory",
+      "night-out",
+      "feel-good",
+      "upbeat",
+    ];
+
+    return (
+      track.energy === "high" &&
+      partySignals.some((signal) => searchable.includes(signal))
+    );
+  }
+
+  const calmSignals = [
+    "acoustic",
+    "ambient",
+    "indie folk",
+    "dream pop",
+    "gentle",
+    "calm",
+    "quiet",
+    "reflective",
+    "intimate",
+    "soft",
+    "warm",
+    "melancholic",
+    "minimal",
+    "peaceful",
   ];
 
   return (
-    track.energy === "high" &&
-    partySignals.some((signal) => searchable.includes(signal))
+    track.energy !== "high" &&
+    calmSignals.some((signal) => searchable.includes(signal))
   );
 }
 
 function getIntentInstruction(intent: PromptIntent) {
   if (intent === "party") {
     return "The listener explicitly requested party music. Every selected track must be danceable, upbeat, celebratory, club-ready or festival-ready. This requirement is more important than matching the currently playing song. Do not select heavy, brooding, slow, intimate or melancholy tracks merely because they are high-energy.";
+  }
+
+  if (intent === "calm") {
+    return "The listener explicitly requested a calmer, acoustic or reflective direction. Every selected track must feel softer, gentler, more spacious or more acoustic than a party queue. Avoid club, festival and aggressive high-energy picks.";
   }
 
   return "Follow the listener's explicit prompt first, then use the currently playing song as supporting context.";
@@ -873,23 +919,21 @@ function createCandidatePool(
   prompt: string,
   level: DiscoveryLevel,
   excludedTracks: string[],
-  nowPlaying: NowPlayingContext | null
+  nowPlaying: NowPlayingContext | null,
 ) {
   const excluded = new Set(excludedTracks.map(normalise));
 
   if (nowPlaying) {
-    excluded.add(
-      normalise(`${nowPlaying.title} - ${nowPlaying.artist}`)
-    );
+    excluded.add(normalise(`${nowPlaying.title} - ${nowPlaying.artist}`));
   }
   const nonExcluded = CATALOGUE.filter(
-    (track) => !excluded.has(normalise(trackKey(track)))
+    (track) => !excluded.has(normalise(trackKey(track))),
   );
 
   const baseSource = nonExcluded.length >= 10 ? nonExcluded : CATALOGUE;
   const promptIntent = detectPromptIntent(prompt);
   const intentFilteredSource = baseSource.filter((track) =>
-    matchesPromptIntent(track, promptIntent)
+    matchesPromptIntent(track, promptIntent),
   );
   const source =
     promptIntent !== "general" && intentFilteredSource.length >= 8
@@ -909,25 +953,17 @@ function createCandidatePool(
     "new artists",
   ].some((phrase) => promptText.includes(phrase));
 
-  const lowerEnergyRequested = [
-    "calm",
-    "soft",
-    "slow",
-    "gentle",
-    "quiet",
-    "low energy",
-  ].some((phrase) => promptText.includes(phrase));
+  const lowerEnergyRequested =
+    promptIntent === "calm" ||
+    ["calm", "soft", "slow", "gentle", "quiet", "low energy"].some((phrase) =>
+      promptText.includes(phrase),
+    );
 
   const higherEnergyRequested =
     promptIntent === "party" ||
-    [
-      "energy",
-      "energetic",
-      "upbeat",
-      "loud",
-      "powerful",
-      "high energy",
-    ].some((phrase) => promptText.includes(phrase));
+    ["energy", "energetic", "upbeat", "loud", "powerful", "high energy"].some(
+      (phrase) => promptText.includes(phrase),
+    );
 
   return source
     .map((track) => {
@@ -938,12 +974,12 @@ function createCandidatePool(
           ...track.genres,
           ...track.moods,
           track.energy,
-        ].join(" ")
+        ].join(" "),
       );
 
       const termScore = promptTerms.reduce(
         (score, term) => score + (searchable.includes(term) ? 3 : 0),
-        0
+        0,
       );
 
       const distanceScore =
@@ -957,7 +993,10 @@ function createCandidatePool(
           ? 3
           : 0;
 
-      const intentScore = matchesPromptIntent(track, promptIntent) ? 12 : 0;
+      const intentScore =
+        promptIntent !== "general" && matchesPromptIntent(track, promptIntent)
+          ? 12
+          : 0;
       const randomVariety = Math.random() * 2;
 
       return {
@@ -979,8 +1018,8 @@ function createCandidatePool(
 function getTagPattern(level: DiscoveryLevel): DiscoveryTag[] {
   if (level === "Safe") {
     return [
-      "Familiar anchor",
-      "Familiar anchor",
+      "Familiar bridge",
+      "Familiar bridge",
       "New to you",
       "New to you",
       "New to you",
@@ -998,7 +1037,7 @@ function getTagPattern(level: DiscoveryLevel): DiscoveryTag[] {
   }
 
   return [
-    "Familiar anchor",
+    "Familiar bridge",
     "New to you",
     "New to you",
     "New to you",
@@ -1006,33 +1045,58 @@ function getTagPattern(level: DiscoveryLevel): DiscoveryTag[] {
   ];
 }
 
-function createFallbackReason(
-  track: CatalogueTrack,
-  prompt: string,
-  tag: DiscoveryTag
-) {
-  const mood = track.moods.slice(0, 2).join(" and ");
+function compactReason(value: string) {
+  const words = value
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 12);
+
+  let result = "";
+
+  for (const word of words) {
+    const candidate = result ? `${result} ${word}` : word;
+
+    if (candidate.length > 70) {
+      break;
+    }
+
+    result = candidate;
+  }
+
+  const fallback =
+    result || "Fits the requested direction while adding a fresh discovery";
+
+  return /[.!?]$/.test(fallback) ? fallback : `${fallback}.`;
+}
+
+function createFallbackReason(track: CatalogueTrack, tag: DiscoveryTag) {
+  const mood = track.moods[0];
   const genre = track.genres[0];
 
-  if (tag === "Familiar anchor") {
-    return `A recognisable ${genre} anchor with ${mood} qualities that keeps the queue connected to your request.`;
+  if (tag === "Familiar bridge") {
+    return compactReason(
+      `Keeps the ${mood} feel while moving toward a new artist`,
+    );
   }
 
   if (tag === "Stretch pick") {
-    return `A wider step into ${genre}, chosen to add a more unexpected ${mood} edge without breaking the flow.`;
+    return compactReason(
+      `Adds a bolder ${genre} turn without breaking the queue flow`,
+    );
   }
 
-  return `A discovery-led ${genre} pick with ${mood} qualities that responds to “${prompt.slice(
-    0,
-    70
-  )}”.`;
+  return compactReason(
+    `Matches the ${mood} mood through a less familiar ${genre} voice`,
+  );
 }
 
 function createFallbackResponse(
   candidates: CatalogueTrack[],
   prompt: string,
   level: DiscoveryLevel,
-  nowPlaying: NowPlayingContext | null
+  nowPlaying: NowPlayingContext | null,
 ) {
   const selected = candidates.slice(0, 5);
   const tags = getTagPattern(level);
@@ -1044,16 +1108,15 @@ function createFallbackResponse(
       artist: track.artist,
       art: track.art,
       tag: tags[index],
-      reason: createFallbackReason(track, prompt, tags[index]),
+      reason: createFallbackReason(track, tags[index]),
     })),
     summary:
       promptIntent === "party"
         ? `A danceable ${level.toLowerCase()} party queue built around unfamiliar artists, upbeat momentum and a coherent energy rise.`
         : nowPlaying
-        ? `Starting from “${nowPlaying.title}” by ${nowPlaying.artist}, this ${level.toLowerCase()} queue keeps the musical thread while introducing unfamiliar artists and controlled musical distance.`
-        : `Built around your request with a ${level.toLowerCase()} mix of emotional continuity, unfamiliar artists and controlled musical distance.`,
+          ? `Starting from “${nowPlaying.title}” by ${nowPlaying.artist}, this ${level.toLowerCase()} queue keeps the musical thread while introducing unfamiliar artists and controlled musical distance.`
+          : `Built around your request with a ${level.toLowerCase()} mix of emotional continuity, unfamiliar artists and controlled musical distance.`,
     usedFallback: true,
-    provider: "Curated fallback",
   };
 }
 
@@ -1069,11 +1132,11 @@ export async function POST(request: Request) {
       },
       {
         status: 400,
-      }
+      },
     );
   }
 
-  const prompt =
+  const userPrompt =
     typeof body.prompt === "string" ? body.prompt.trim().slice(0, 600) : "";
 
   const level: DiscoveryLevel = isDiscoveryLevel(body.level)
@@ -1087,31 +1150,50 @@ export async function POST(request: Request) {
     : [];
 
   const nowPlaying = parseNowPlaying(body.nowPlaying);
+
+  const previousTracks = Array.isArray(body.previousTracks)
+    ? body.previousTracks
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 5)
+    : [];
+
+  const promptWasProvided = Boolean(userPrompt);
+
+  const prompt =
+    userPrompt ||
+    (nowPlaying
+      ? `Surprise me with a ${level.toLowerCase()} discovery queue that keeps the musical character of "${nowPlaying.title}" by ${nowPlaying.artist}, while introducing unfamiliar artists.`
+      : `Surprise me with a ${level.toLowerCase()} discovery queue of unfamiliar tracks with a coherent musical flow.`);
+
   const promptIntent = detectPromptIntent(prompt);
 
-  if (!prompt) {
-    return Response.json(
-      {
-        error: "Please enter a discovery prompt.",
-      },
-      {
-        status: 400,
-      }
-    );
-  }
-
-  const candidates = createCandidatePool(
+  const rankedCandidates = createCandidatePool(
     prompt,
     level,
     excludedTracks,
-    nowPlaying
+    nowPlaying,
   );
+
+  const previousTrackKeys = new Set(previousTracks.map(normalise));
+
+  const previousQueueCandidates = CATALOGUE.filter((track) =>
+    previousTrackKeys.has(normalise(trackKey(track))),
+  );
+
+  const candidates = [
+    ...previousQueueCandidates,
+    ...rankedCandidates.filter(
+      (track) => !previousTrackKeys.has(normalise(trackKey(track))),
+    ),
+  ].slice(0, 24);
 
   const fallbackResponse = createFallbackResponse(
     candidates,
     prompt,
     level,
-    nowPlaying
+    nowPlaying,
   );
   const apiKey = process.env.GROQ_API_KEY;
 
@@ -1125,17 +1207,17 @@ export async function POST(request: Request) {
 
   const candidateKeys = candidates.map(trackKey);
   const candidateByKey = new Map(
-    candidates.map((track) => [normalise(trackKey(track)), track])
+    candidates.map((track) => [normalise(trackKey(track)), track]),
   );
 
   const intentInstruction = getIntentInstruction(promptIntent);
 
   const levelInstruction =
     level === "Safe"
-      ? "Stay close to the musical character of the current song. Use two accessible anchors and three gentle discoveries."
+      ? "Stay close to the musical character of the current song. Use two familiar bridges and three gentle discoveries."
       : level === "Adventurous"
-      ? "Use the current song only as a starting point, then prioritise unfamiliar artists, wider genre movement and two genuine stretch picks."
-      : "Use the current song as a musical anchor, then choose one familiar-feeling track, three new-to-you discoveries and one stretch pick.";
+        ? "Use the current song only as a starting point, then prioritise unfamiliar artists, wider genre movement and two genuine stretch picks."
+        : "Use the current song as a musical anchor, then choose one familiar bridge, three new-to-you discoveries and one stretch pick.";
 
   try {
     const groqResponse = await fetch(
@@ -1152,19 +1234,22 @@ export async function POST(request: Request) {
             {
               role: "system",
               content:
-                "You are the recommendation intelligence inside Spotify's Discover Next feature. The listener's explicit natural-language request is the strongest instruction. Use the real currently playing song only as supporting musical context when it does not conflict with the request. Select exactly five unique songs only from the supplied candidate list. Preserve a coherent queue flow, avoid generic repetition, and never invent a song or artist. Return concise reasons that explain why each track satisfies the listener's request.",
+                "You are the recommendation intelligence inside Spotify's Discover Next feature. The listener's explicit natural-language request is the strongest instruction. Use the currently playing song only as supporting context when it does not conflict with the request. Select exactly five unique songs only from the supplied candidate list. Never invent a song or artist. Every reason must be one complete sentence of at most 12 words and at most 70 characters. When previousQueue is supplied, retain one to three previous tracks only when they still fit the refined request; replace tracks that no longer fit.",
             },
             {
               role: "user",
               content: JSON.stringify({
                 nowPlaying,
+                previousQueue: previousTracks,
+                refineMode: previousTracks.length > 0,
                 listenerPrompt: prompt,
+                promptWasProvided,
                 detectedIntent: promptIntent,
                 intentInstruction,
                 discoveryLevel: level,
                 levelInstruction,
                 outputInstruction:
-                  "Return exactly five unique trackKey values from candidates. Obey the detected intent as a hard constraint. Order the tracks as a playable queue with a coherent emotional or energy progression.",
+                  "Return exactly five unique trackKey values from candidates. If promptWasProvided is false, infer the best direction from the current song and discovery level without asking a follow-up question. Obey the detected intent as a hard constraint. Order the tracks as a coherent playable queue. Each reason must be one complete sentence with no more than 12 words and no more than 70 characters. Return a short interpretive summary of what you understood.",
                 candidates: candidates.map((track) => ({
                   trackKey: trackKey(track),
                   genres: track.genres,
@@ -1175,7 +1260,7 @@ export async function POST(request: Request) {
               }),
             },
           ],
-          temperature: 0.9,
+          temperature: 0.7,
           reasoning_effort: "low",
           max_completion_tokens: 1000,
           response_format: {
@@ -1214,18 +1299,17 @@ export async function POST(request: Request) {
           },
         }),
         cache: "no-store",
-      }
+      },
     );
 
     if (!groqResponse.ok) {
       const errorText = await groqResponse.text();
       throw new Error(
-        `Groq request failed with ${groqResponse.status}: ${errorText}`
+        `Groq request failed with ${groqResponse.status}: ${errorText}`,
       );
     }
 
-    const groqData =
-      (await groqResponse.json()) as GroqChatCompletionResponse;
+    const groqData = (await groqResponse.json()) as GroqChatCompletionResponse;
 
     const content = groqData.choices?.[0]?.message?.content;
 
@@ -1277,7 +1361,7 @@ export async function POST(request: Request) {
         artist: track.artist,
         art: track.art,
         tag: tags[index],
-        reason: selection.reason.trim().slice(0, 260),
+        reason: compactReason(selection.reason),
       };
     });
 
@@ -1286,16 +1370,15 @@ export async function POST(request: Request) {
         tracks,
         summary:
           typeof parsed.summary === "string" && parsed.summary.trim()
-            ? parsed.summary.trim().slice(0, 320)
+            ? parsed.summary.trim().slice(0, 180)
             : `A ${level.toLowerCase()} discovery queue shaped around your prompt.`,
         usedFallback: false,
-        provider: "Groq · GPT-OSS 20B",
       },
       {
         headers: {
           "Cache-Control": "no-store",
         },
-      }
+      },
     );
   } catch (error) {
     console.error("Discover Next Groq error:", error);
