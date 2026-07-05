@@ -1234,7 +1234,7 @@ export async function POST(request: Request) {
             {
               role: "system",
               content:
-                "You are the recommendation intelligence inside Spotify's Discover Next feature. The listener's explicit natural-language request is the strongest instruction. Use the currently playing song only as supporting context when it does not conflict with the request. Select exactly five unique songs only from the supplied candidate list. Never invent a song or artist. Every reason must be one complete sentence of at most 12 words and at most 70 characters. When previousQueue is supplied, retain one to three previous tracks only when they still fit the refined request; replace tracks that no longer fit.",
+                "You are the recommendation intelligence inside Spotify's Discover Queue feature. The listener's explicit natural-language request is the strongest instruction. Use the currently playing song only as supporting context when it does not conflict with the request. Select exactly five unique songs only from the supplied candidate list. Never invent a song or artist. Every reason must be one complete sentence of at most 12 words and at most 70 characters. When previousQueue is supplied, retain one to three previous tracks only when they still fit the refined request; replace tracks that no longer fit.",
             },
             {
               role: "user",
@@ -1381,7 +1381,7 @@ export async function POST(request: Request) {
       },
     );
   } catch (error) {
-    console.error("Discover Next Groq error:", error);
+    console.error("Discover Queue Groq error:", error);
 
     return Response.json(fallbackResponse, {
       headers: {

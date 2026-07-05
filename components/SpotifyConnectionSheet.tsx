@@ -1,6 +1,6 @@
 "use client";
 
-import DiscoverNextLogo from "@/components/DiscoverNextLogo";
+import DiscoverQueueLogo from "@/components/DiscoverQueueLogo";
 
 type SpotifyConnectionSheetProps = {
   open: boolean;
@@ -36,7 +36,7 @@ export default function SpotifyConnectionSheet({
         <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-500" />
 
         <div className="mt-6">
-          <DiscoverNextLogo size="large" />
+          <DiscoverQueueLogo size="large" />
         </div>
 
         <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-green-400">
@@ -48,7 +48,7 @@ export default function SpotifyConnectionSheet({
         </h2>
 
         <p className="mt-3 text-sm leading-6 text-zinc-300">
-          Spotify opens its own sign-in and consent screen. Discover Next never
+          Spotify opens its own sign-in and consent screen. Discover Queue never
           receives or stores your Spotify password or verification code.
         </p>
 

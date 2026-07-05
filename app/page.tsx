@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loginWithSpotify, spotifyFetch } from "@/lib/spotifyAuth";
-import DiscoverNextLogo from "@/components/DiscoverNextLogo";
+import DiscoverQueueLogo from "@/components/DiscoverQueueLogo";
 import SpotifyPlayer from "@/components/SpotifyPlayer";
 import DemoSpotifyPlayer from "@/components/DemoSpotifyPlayer";
 import SpotifyConnectionSheet from "@/components/SpotifyConnectionSheet";
@@ -206,19 +206,20 @@ export default function Home() {
 
     setAuthState(hasSpotifySession ? "signedIn" : "signedOut");
 
-    const returnView = localStorage.getItem(
-      "discover_next_return_view",
-    );
+    const returnView =
+      localStorage.getItem("discover_queue_return_view") ??
+      localStorage.getItem("discover_next_return_view");
 
-    const storedMode = localStorage.getItem(
-      "discover_next_experience_mode",
-    );
+    const storedMode =
+      localStorage.getItem("discover_queue_experience_mode") ??
+      localStorage.getItem("discover_next_experience_mode");
 
     if (
       hasSpotifySession &&
       storedMode === "live" &&
       (returnView === "home" || returnView === "discover")
     ) {
+      localStorage.removeItem("discover_queue_return_view");
       localStorage.removeItem("discover_next_return_view");
       setExperienceMode("live");
       setView(returnView);
@@ -230,11 +231,11 @@ export default function Home() {
     setLoginError("");
 
     localStorage.setItem(
-      "discover_next_experience_mode",
+      "discover_queue_experience_mode",
       "live",
     );
     localStorage.setItem(
-      "discover_next_return_view",
+      "discover_queue_return_view",
       connectDestination,
     );
 
@@ -375,7 +376,7 @@ export default function Home() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Could not generate the discovery queue.",
+          data.error || "Could not generate Discover Queue.",
         );
       }
 
@@ -411,7 +412,7 @@ export default function Home() {
       setGenerationError(
         error instanceof Error
           ? error.message
-          : "The discovery queue could not be generated. Please try again.",
+          : "Discover Queue could not be generated. Please try again.",
       );
     } finally {
       setIsGenerating(false);
@@ -578,12 +579,12 @@ export default function Home() {
 
             <div className="relative">
               <div className="flex items-center gap-3">
-                <DiscoverNextLogo size="medium" />
+                <DiscoverQueueLogo size="medium" />
 
                 <div>
-                  <p className="font-bold">Discover Next</p>
+                  <p className="font-bold">Discover Queue</p>
                   <p className="text-xs text-zinc-500">
-                    Discover Next demo
+                    Discover Queue demo
                   </p>
                 </div>
               </div>
@@ -601,7 +602,7 @@ export default function Home() {
                 </h1>
 
                 <p className="mt-6 max-w-sm text-base leading-7 text-zinc-300">
-                  Try the complete Discover Next flow without an account, or
+                  Try the complete Discover Queue flow without an account, or
                   connect Spotify for real browser playback.
                 </p>
               </div>
@@ -748,11 +749,11 @@ export default function Home() {
                 className="flex min-h-20 items-center overflow-hidden rounded-lg bg-green-500 text-left text-black"
               >
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-green-400">
-                  <DiscoverNextLogo size="small" />
+                  <DiscoverQueueLogo size="small" />
                 </div>
 
                 <div className="min-w-0 px-3">
-                  <p className="truncate text-sm font-bold">Discover Next</p>
+                  <p className="truncate text-sm font-bold">Discover Queue</p>
                   <p className="mt-1 truncate text-xs text-black/65">
                     Shape what plays next
                   </p>
@@ -810,7 +811,7 @@ export default function Home() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em]">
-                      Discover Next
+                      Discover Queue
                     </p>
 
                     <h3 className="mt-3 text-3xl font-black leading-tight">
@@ -820,15 +821,15 @@ export default function Home() {
 
                     <p className="mt-4 max-w-xs text-sm leading-6 text-black/70">
                       Start from the current song, describe what you want, and
-                      generate a five-track discovery queue.
+                      generate a five-track Discover Queue.
                     </p>
                   </div>
 
-                  <DiscoverNextLogo size="large" />
+                  <DiscoverQueueLogo size="large" />
                 </div>
 
                 <div className="mt-6 inline-flex rounded-full bg-black px-5 py-3 text-sm font-bold text-white">
-                  Try Discover Next
+                  Try Discover Queue
                 </div>
               </button>
             </section>
@@ -908,7 +909,7 @@ export default function Home() {
                 </p>
                 <p className="truncate text-xs text-zinc-400">
                   {experienceMode === "demo"
-                    ? "Discover Next demo"
+                    ? "Discover Queue demo"
                     : "Live Spotify playback"}
                 </p>
               </div>
@@ -980,10 +981,10 @@ export default function Home() {
             </button>
 
             <div className="flex items-center gap-2">
-              <DiscoverNextLogo size="tiny" />
+              <DiscoverQueueLogo size="tiny" />
 
               <div className="text-left">
-                <p className="text-sm font-semibold text-white">Discover Next</p>
+                <p className="text-sm font-semibold text-white">Discover Queue</p>
                 <p className="text-xs text-zinc-500">Shape what plays next</p>
               </div>
             </div>
@@ -1018,7 +1019,7 @@ export default function Home() {
                 Connect Spotify for live playback
               </p>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                Spotify handles the sign-in screen. Discover Next never sees
+                Spotify handles the sign-in screen. Discover Queue never sees
                 your password or verification code.
               </p>
 
@@ -1047,7 +1048,7 @@ export default function Home() {
             className="fixed inset-0 z-50 flex items-end justify-center bg-black/80"
             role="dialog"
             aria-modal="true"
-            aria-label="Discover Next results"
+            aria-label="Discover Queue results"
           >
             <button
               type="button"
@@ -1062,15 +1063,15 @@ export default function Home() {
 
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <DiscoverNextLogo size="small" />
+                    <DiscoverQueueLogo size="small" />
 
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-400">
-                        Discover Next
+                        Discover Queue
                       </p>
 
                       <h2 className="mt-1 text-2xl font-black">
-                        Your Discover Next queue
+                        Your Discover Queue
                       </h2>
 
                       <p className="mt-1 text-sm text-zinc-400">
@@ -1170,14 +1171,14 @@ export default function Home() {
                 {queueUpdated ? (
                   <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-4">
                     <div className="flex items-center gap-3">
-                      <DiscoverNextLogo size="small" />
+                      <DiscoverQueueLogo size="small" />
                       <div>
                         <p className="font-semibold text-green-400">
-                          Added by Discover Next
+                          Added by Discover Queue
                         </p>
                         <p className="mt-1 text-sm text-zinc-300">
-                          Your current song keeps playing. Five tracks are now
-                          waiting in the queue.
+                          Your current song keeps playing. The next skip—or the
+                          end of this song—starts the five-track Discover Queue.
                         </p>
                       </div>
                     </div>
@@ -1239,16 +1240,16 @@ export default function Home() {
 
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <DiscoverNextLogo size="small" />
+                  <DiscoverQueueLogo size="small" />
 
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-400">
-                      Discover Next
+                      Discover Queue
                     </p>
 
                     <h2 className="mt-1 text-2xl font-bold">
                       {isRefining
-                        ? "Refine your discovery queue"
+                        ? "Refine your Discover Queue"
                         : "What should come next?"}
                     </h2>
 
@@ -1369,9 +1370,9 @@ export default function Home() {
                 className="mt-7 w-full rounded-full bg-green-500 py-4 font-bold text-black disabled:bg-zinc-600 disabled:text-zinc-400"
               >
                 {isGenerating
-                  ? "Building your discovery queue..."
+                  ? "Building your Discover Queue..."
                   : prompt.trim()
-                    ? "Build discovery queue"
+                    ? "Build with Discover Queue"
                     : nowPlaying
                       ? "Build from current song"
                       : "Surprise me"}

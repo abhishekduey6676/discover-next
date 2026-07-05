@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import DiscoverNextLogo from "@/components/DiscoverNextLogo";
+import DiscoverQueueLogo from "@/components/DiscoverQueueLogo";
 import DemoTrackCover from "@/components/DemoTrackCover";
 import {
   DEFAULT_DEMO_TRACK,
@@ -57,7 +57,7 @@ function toGeneratedDemoTrack(
     art: track.art,
     uri: track.uri,
     duration: 240_000,
-    collection: "Added by Discover Next",
+    collection: "Added by Discover Queue",
     coverFrom: colors[0],
     coverTo: colors[1],
   };
@@ -178,7 +178,7 @@ export default function DemoSpotifyPlayer({
 
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">
-              Playing from Discover Next
+              Playing from Discover Queue
             </p>
             <p className="mt-1 text-[10px] text-green-400">
               Interactive demo
@@ -315,7 +315,7 @@ export default function DemoSpotifyPlayer({
             className="flex items-center gap-2 text-sm font-semibold text-green-400"
           >
             <span className="text-xl">▱</span>
-            Discover Next
+            Discover Queue
           </button>
 
           <div className="flex items-center gap-5">
@@ -334,11 +334,11 @@ export default function DemoSpotifyPlayer({
 
             <button
               type="button"
-              aria-label="Open Discover Next queue"
+              aria-label="Open Discover Queue"
               onClick={() => setQueueOpen(true)}
               className="rounded-xl transition active:scale-95"
             >
-              <DiscoverNextLogo size="small" />
+              <DiscoverQueueLogo size="small" />
             </button>
           </div>
         </div>
@@ -372,7 +372,7 @@ export default function DemoSpotifyPlayer({
 
           <p className="mt-4 text-sm leading-6 text-zinc-300">
             {currentTrack.title} by {currentTrack.artist} is the musical anchor.
-            Discover Next combines this context with your prompt to build what
+            Discover Queue combines this context with your prompt to build what
             plays next.
           </p>
         </section>
@@ -383,7 +383,7 @@ export default function DemoSpotifyPlayer({
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/75"
           role="dialog"
           aria-modal="true"
-          aria-label="Discover Next queue"
+          aria-label="Discover Queue"
         >
           <button
             type="button"
@@ -397,11 +397,11 @@ export default function DemoSpotifyPlayer({
 
             <div className="mt-5 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <DiscoverNextLogo size="small" />
+                <DiscoverQueueLogo size="small" />
 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-400">
-                    Discover Next
+                    Discover Queue
                   </p>
                   <h2 className="mt-1 text-2xl font-black">Queue</h2>
                 </div>
@@ -444,7 +444,7 @@ export default function DemoSpotifyPlayer({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
                   {isDiscoverNextQueue
-                    ? "Added by Discover Next"
+                    ? "Added by Discover Queue"
                     : "Next in queue"}
                 </p>
                 <h3 className="mt-1 text-lg font-bold">
@@ -481,7 +481,7 @@ export default function DemoSpotifyPlayer({
 
                     {isDiscoverNextQueue && (
                       <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-400">
-                        Added by Discover Next
+                        Added by Discover Queue
                       </p>
                     )}
                   </div>
@@ -493,7 +493,7 @@ export default function DemoSpotifyPlayer({
 
             <div className="mt-7 rounded-3xl border border-green-500/30 bg-green-500/10 p-5">
               <div className="flex items-start gap-3">
-                <DiscoverNextLogo size="small" />
+                <DiscoverQueueLogo size="small" />
                 <div>
                   <p className="font-bold">Shape what plays next</p>
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
@@ -510,7 +510,7 @@ export default function DemoSpotifyPlayer({
                 }}
                 className="mt-5 w-full rounded-full bg-green-500 py-4 font-bold text-black"
               >
-                Build with Discover Next
+                Build with Discover Queue
               </button>
             </div>
           </section>

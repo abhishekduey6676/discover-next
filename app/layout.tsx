@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Discover Next",
+  title: "Discover Queue",
   description: "AI-powered music discovery queue prototype",
 };
 export default function RootLayout({

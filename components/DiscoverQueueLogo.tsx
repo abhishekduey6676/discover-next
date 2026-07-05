@@ -1,14 +1,14 @@
 "use client";
 
-type DiscoverNextLogoProps = {
+type DiscoverQueueLogoProps = {
   size?: "tiny" | "small" | "medium" | "large";
   className?: string;
 };
 
-export default function DiscoverNextLogo({
+export default function DiscoverQueueLogo({
   size = "medium",
   className = "",
-}: DiscoverNextLogoProps) {
+}: DiscoverQueueLogoProps) {
   const sizeClasses = {
     tiny: "h-8 w-8 rounded-xl p-1.5",
     small: "h-10 w-10 rounded-xl p-2",
@@ -18,7 +18,7 @@ export default function DiscoverNextLogo({
 
   return (
     <div
-      aria-label="Discover Next logo"
+      aria-label="Discover Queue logo"
       role="img"
       className={`shrink-0 bg-green-500 text-black shadow-[0_0_30px_rgba(34,197,94,0.22)] ${sizeClasses[size]} ${className}`}
     >

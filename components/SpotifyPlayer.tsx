@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import DiscoverNextLogo from "@/components/DiscoverNextLogo";
+import DiscoverQueueLogo from "@/components/DiscoverQueueLogo";
 import {
   getValidSpotifyAccessToken,
   spotifyFetch,
@@ -135,6 +135,10 @@ export default function SpotifyPlayer({
   const playerRef = useRef<SpotifyPlayerInstance | null>(null);
   const onTrackChangeRef = useRef(onTrackChange);
   const autoStartAttemptedRef = useRef(false);
+  const pendingDiscoverQueueRef = useRef(false);
+  const discoverQueueAnchorUriRef = useRef<string | null>(null);
+  const lastObservedTrackUriRef = useRef<string | null>(null);
+  const isStartingDiscoverQueueRef = useRef(false);
 
   const [status, setStatus] = useState(
     "Loading Spotify player..."
@@ -163,6 +167,49 @@ export default function SpotifyPlayer({
   }, [onTrackChange]);
 
   useEffect(() => {
+    if (queuedTracks.length === 0) {
+      pendingDiscoverQueueRef.current = false;
+      discoverQueueAnchorUriRef.current = null;
+      return;
+    }
+
+    pendingDiscoverQueueRef.current = true;
+    discoverQueueAnchorUriRef.current = currentTrack?.uri ?? null;
+  }, [queuedTracks]);
+
+  useEffect(() => {
+    const currentUri = currentTrack?.uri ?? null;
+    const previousUri = lastObservedTrackUriRef.current;
+
+    lastObservedTrackUriRef.current = currentUri;
+
+    if (
+      !currentUri ||
+      !previousUri ||
+      currentUri === previousUri ||
+      !pendingDiscoverQueueRef.current
+    ) {
+      return;
+    }
+
+    const discoverUris = queuedTracks
+      .map((track) => track.uri)
+      .filter(Boolean);
+
+    if (discoverUris.includes(currentUri)) {
+      pendingDiscoverQueueRef.current = false;
+      return;
+    }
+
+    if (
+      discoverQueueAnchorUriRef.current &&
+      previousUri === discoverQueueAnchorUriRef.current
+    ) {
+      void startDiscoverQueuePlayback();
+    }
+  }, [currentTrack?.uri, queuedTracks, deviceId]);
+
+  useEffect(() => {
     const hasSpotifySession =
       localStorage.getItem("spotify_access_token") ||
       localStorage.getItem("spotify_refresh_token");
@@ -184,7 +231,7 @@ export default function SpotifyPlayer({
       }
 
       const player = new window.Spotify.Player({
-        name: "Discover Next",
+        name: "Discover Queue",
 
         getOAuthToken: (callback) => {
           void getValidSpotifyAccessToken()
@@ -457,6 +504,91 @@ export default function SpotifyPlayer({
     }
   }
 
+  async function startDiscoverQueuePlayback(
+    startIndex = 0,
+  ) {
+    const uris = queuedTracks
+      .slice(startIndex)
+      .map((track) => track.uri)
+      .filter(Boolean);
+
+    if (
+      uris.length === 0 ||
+      !deviceId ||
+      isStartingDiscoverQueueRef.current
+    ) {
+      return false;
+    }
+
+    isStartingDiscoverQueueRef.current = true;
+
+    try {
+      await playerRef.current?.activateElement();
+
+      const response = await spotifyFetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(
+          deviceId,
+        )}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            uris,
+          }),
+        },
+      );
+
+      if (!response.ok && response.status !== 204) {
+        const errorText = await response.text();
+
+        throw new Error(
+          errorText ||
+            `Could not start Discover Queue: ${response.status}`,
+        );
+      }
+
+      pendingDiscoverQueueRef.current = false;
+      discoverQueueAnchorUriRef.current = null;
+      setApiQueue([]);
+      setStatus("Playing Discover Queue");
+
+      return true;
+    } catch (error) {
+      console.error(error);
+
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not start Discover Queue.",
+      );
+
+      return false;
+    } finally {
+      isStartingDiscoverQueueRef.current = false;
+    }
+  }
+
+  async function handleNextTrack() {
+    const discoverUris = queuedTracks
+      .map((track) => track.uri)
+      .filter(Boolean);
+
+    const currentUri = currentTrack?.uri ?? "";
+    const currentDiscoverIndex = discoverUris.indexOf(currentUri);
+
+    if (
+      discoverUris.length > 0 &&
+      currentDiscoverIndex === -1
+    ) {
+      await startDiscoverQueuePlayback();
+      return;
+    }
+
+    await playerRef.current?.nextTrack();
+  }
+
   async function refreshSpotifyQueue() {
     setIsQueueLoading(true);
     setQueueError("");
@@ -648,14 +780,14 @@ export default function SpotifyPlayer({
           <span className="h-10 w-10" />
 
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">
-            Playing from Discover Next
+            Playing from Discover Queue
           </p>
 
           <span className="h-10 w-10" />
         </div>
 
         <div className="mx-auto mt-7 flex aspect-square max-w-[340px] items-center justify-center rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 shadow-2xl">
-          <DiscoverNextLogo size="large" />
+          <DiscoverQueueLogo size="large" />
         </div>
 
         <div className="mt-9">
@@ -666,7 +798,7 @@ export default function SpotifyPlayer({
           <p className="mt-2 text-sm leading-6 text-zinc-400">
             {needsTap
               ? "Tap once to start playback and use the song as your musical anchor."
-              : "Discover Next is connecting the browser player and loading A Message by Coldplay."}
+              : "Discover Queue is connecting the browser player and loading A Message by Coldplay."}
           </p>
         </div>
 
@@ -702,7 +834,7 @@ export default function SpotifyPlayer({
           </button>
 
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">
-            Playing from Discover Next
+            Playing from Discover Queue
           </p>
 
           <button
@@ -796,7 +928,7 @@ export default function SpotifyPlayer({
 
           <button
             type="button"
-            onClick={() => void playerRef.current?.nextTrack()}
+            onClick={() => void handleNextTrack()}
             className="text-4xl"
             aria-label="Next track"
           >
@@ -820,7 +952,7 @@ export default function SpotifyPlayer({
             className="flex items-center gap-2 text-sm font-semibold text-green-400"
           >
             <span className="text-xl">▱</span>
-            Discover Next
+            Discover Queue
           </button>
 
           <div className="flex items-center gap-5">
@@ -835,11 +967,11 @@ export default function SpotifyPlayer({
 
             <button
               type="button"
-              aria-label="Open queue and Discover Next"
+              aria-label="Open queue and Discover Queue"
               onClick={openQueue}
               className="rounded-xl transition active:scale-95"
             >
-              <DiscoverNextLogo size="small" />
+              <DiscoverQueueLogo size="small" />
             </button>
           </div>
         </div>
@@ -879,7 +1011,7 @@ export default function SpotifyPlayer({
 
           <p className="mt-4 text-sm leading-6 text-zinc-300">
             {currentTrack.name} by {artists} is being used as the musical
-            anchor for Discover Next. The prototype uses its mood and your
+            anchor for Discover Queue. The prototype uses its mood and your
             prompt to shape what comes next.
           </p>
 
@@ -992,7 +1124,7 @@ export default function SpotifyPlayer({
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-400">
-                  Playing on Discover Next
+                  Playing on Discover Queue
                 </p>
               </div>
 
@@ -1041,7 +1173,7 @@ export default function SpotifyPlayer({
                 <div>
                   <p className="text-sm font-semibold text-zinc-400">
                     {queuedTracks.length > 0
-                      ? "Added by Discover Next"
+                      ? "Added by Discover Queue"
                       : "Next in queue"}
                   </p>
 
@@ -1049,7 +1181,7 @@ export default function SpotifyPlayer({
                     {queuedTracks.length > 0
                       ? `${queuedTracks.length} tracks added to what’s next`
                       : queueDisplay.isDemo
-                        ? "Demo queue before Discover Next"
+                        ? "Demo queue before Discover Queue"
                         : "Your current Spotify queue"}
                   </p>
                 </div>
@@ -1093,7 +1225,7 @@ export default function SpotifyPlayer({
 
                       {queuedTracks.length > 0 && (
                         <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-400">
-                          Added by Discover Next
+                          Added by Discover Queue
                         </p>
                       )}
                     </div>
@@ -1132,11 +1264,11 @@ export default function SpotifyPlayer({
 
             <div className="mt-7 rounded-3xl border border-green-500/30 bg-green-500/10 p-5">
               <div className="flex items-start gap-3">
-                <DiscoverNextLogo size="medium" />
+                <DiscoverQueueLogo size="medium" />
 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-400">
-                    Discover Next
+                    Discover Queue
                   </p>
 
                   <h3 className="mt-1 text-lg font-bold">
@@ -1158,7 +1290,7 @@ export default function SpotifyPlayer({
                 }}
                 className="mt-5 w-full rounded-full bg-green-500 py-4 font-bold text-black"
               >
-                Build discovery queue
+                Build with Discover Queue
               </button>
             </div>
           </section>
