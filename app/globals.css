@@ -24,3 +24,38 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * iOS Safari renders the Unicode previous/next symbols as coloured emoji.
+ * Replace only those visual glyphs with neutral SVG controls while preserving
+ * the existing accessible labels and button behaviour.
+ */
+button[aria-label="Previous track"],
+button[aria-label="Next track"] {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+button[aria-label="Previous track"]::before,
+button[aria-label="Next track"]::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  display: block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+button[aria-label="Previous track"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M6 5h2v14H6zM18.5 5.7a1 1 0 0 0-1.5-.86L9.5 11.14a1.1 1.1 0 0 0 0 1.72l7.5 6.3a1 1 0 0 0 1.5-.86z'/%3E%3C/svg%3E");
+}
+
+button[aria-label="Next track"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M16 5h2v14h-2zM5.5 5.7a1 1 0 0 1 1.5-.86l7.5 6.3a1.1 1.1 0 0 1 0 1.72L7 19.16a1 1 0 0 1-1.5-.86z'/%3E%3C/svg%3E");
+}
